@@ -1,0 +1,12 @@
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Inter, Poppins, Montserrat, sans-serif;
+  background: #181e29;
+  color: #fff;
+}
+
+.App {
+  min-height: 100vh;
+} 

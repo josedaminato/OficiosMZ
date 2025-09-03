@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useFormField } from '../../hooks/useFormField.jsx';
 
 const FileUpload = ({
   label,
@@ -14,6 +15,13 @@ const FileUpload = ({
   preview = false
 }) => {
   const fileInputRef = useRef(null);
+  const { labelElement, errorElement, containerClasses } = useFormField({
+    label,
+    name,
+    required,
+    error,
+    className
+  });
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -46,13 +54,8 @@ const FileUpload = ({
   };
 
   return (
-    <div className={className}>
-      {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
+    <div className={containerClasses}>
+      {labelElement}
       
       <div
         className={`
@@ -106,9 +109,7 @@ const FileUpload = ({
         </div>
       </div>
       
-      {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
-      )}
+      {errorElement}
     </div>
   );
 };

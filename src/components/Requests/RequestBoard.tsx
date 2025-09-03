@@ -3,6 +3,10 @@ import RequestPaymentStatus from './RequestPaymentStatus';
 import RequestHitos from './RequestHitos';
 import RequestPhotoUpload from './RequestPhotoUpload';
 // import RequestChat from './RequestChat'; // Opcional
+import { supabase } from '../../supabaseClient';
+// @ts-ignore
+import { useAuth } from '../../hooks/useSupabase';
+import { toast } from 'react-toastify';
 
 // Simulación de props de una solicitud
 const mockRequest = {
@@ -11,7 +15,7 @@ const mockRequest = {
   worker_id: 'W1',
   oficio: 'Albañil',
   descripcion: 'Reparación de techo',
-  estado_pago: 'retenido', // 'liberado', 'en disputa'
+  estado_pago: 'retenido' as 'retenido' | 'liberado' | 'en disputa', // 'liberado', 'en disputa'
   hitos: [
     { nombre: 'Inicio', descripcion: 'Foto antes de empezar', foto: '', estado: 'pendiente' },
     { nombre: 'Avance', descripcion: 'Foto de avance', foto: '', estado: 'pendiente' },
@@ -28,6 +32,39 @@ interface RequestBoardProps {
 
 const RequestBoard: React.FC<RequestBoardProps> = ({ role }) => {
   const [conformidad, setConformidad] = useState<null | 'conforme' | 'disconforme'>(null);
+  const [loading, setLoading] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+
+  // Función para liberar el pago
+  const handleLiberarPago = async () => {
+    setLoading(true);
+    try {
+      // Obtener el token JWT actual
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('No se pudo obtener el token de sesión');
+
+      const response = await fetch('http://localhost:8000/api/payments/release', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ request_id: mockRequest.request_id })
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error al liberar el pago');
+      }
+      toast.success('¡Pago liberado exitosamente!');
+      setConformidad('conforme');
+    } catch (error: any) {
+      toast.error(error.message || 'Error al liberar el pago');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Aquí se manejarán los estados y lógica de la solicitud
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6 mt-8">
@@ -55,13 +92,15 @@ const RequestBoard: React.FC<RequestBoardProps> = ({ role }) => {
         <div className="flex gap-4 mt-4">
           <button
             className={`px-4 py-2 rounded font-bold bg-green-500 text-white hover:bg-green-600 ${conformidad === 'conforme' ? 'ring-2 ring-green-400' : ''}`}
-            onClick={() => setConformidad('conforme')}
+            onClick={handleLiberarPago}
+            disabled={loading || conformidad === 'conforme'}
           >
-            Estoy conforme (liberar pago)
+            {loading ? 'Liberando pago...' : 'Estoy conforme (liberar pago)'}
           </button>
           <button
             className={`px-4 py-2 rounded font-bold bg-red-500 text-white hover:bg-red-600 ${conformidad === 'disconforme' ? 'ring-2 ring-red-400' : ''}`}
             onClick={() => setConformidad('disconforme')}
+            disabled={loading || conformidad === 'conforme'}
           >
             No estoy conforme (abrir disputa)
           </button>

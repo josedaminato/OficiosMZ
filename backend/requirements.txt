@@ -4,4 +4,8 @@ deepface
 pillow
 python-multipart
 PyJWT
-python-jose[cryptography] 
+python-jose[cryptography]
+httpx
+pytest
+pytest-asyncio
+tf-keras 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useSupabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import logo from '../../assets/logo.svg';
 
 const ClientDashboard = () => {
   const { user, signOut } = useAuth();
@@ -33,6 +34,7 @@ const ClientDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
+              <img src={logo} alt="Logo OficiosMZ" style={{ height: 40, marginRight: 16 }} />
               <h1 className="text-2xl font-bold text-gray-900">
                 Dashboard del Cliente
               </h1>
