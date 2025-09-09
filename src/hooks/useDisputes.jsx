@@ -1,181 +1,124 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { useApi, useAsyncState } from './useApi';
+import { supabase } from '../supabaseClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const useDisputes = (userId) => {
     const [disputes, setDisputes] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
-    const getAuthHeaders = useCallback(() => {
-        const token = localStorage.getItem('supabase.auth.token');
-        const parsedToken = token ? JSON.parse(token) : null;
-        const accessToken = parsedToken?.currentSession?.access_token;
+    // Usar useApi para llamadas a la API
+    const { execute: executeApi, loading, error, clearError } = useApi(`/api/disputes/user/${userId}`);
 
-        if (!accessToken) {
-            throw new Error("No authentication token found.");
-        }
-
-        return {
-            Authorization: `Bearer ${accessToken}`,
-        };
+    // Función para obtener token de autenticación
+    const getAuthToken = useCallback(async () => {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) throw new Error('Sesión no válida');
+        return session.access_token;
     }, []);
 
     const fetchDisputes = useCallback(async (statusFilter = null, limit = 20, offset = 0) => {
         if (!userId) return;
         
-        setLoading(true);
-        setError(null);
-        
-        try {
-            const params = new URLSearchParams();
-            if (statusFilter) params.append('status_filter', statusFilter);
-            params.append('limit', limit);
-            params.append('offset', offset);
+        const params = {};
+        if (statusFilter) params.status_filter = statusFilter;
+        params.limit = limit;
+        params.offset = offset;
 
-            const response = await axios.get(
-                `${API_BASE_URL}/disputes/user/${userId}?${params}`,
-                { headers: getAuthHeaders() }
-            );
-            
-            setDisputes(response.data);
-        } catch (err) {
-            console.error("Error fetching disputes:", err);
-            setError(err.response?.data?.detail || err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [userId, getAuthHeaders]);
+        const data = await executeApi(params, { method: 'GET' });
+        setDisputes(data);
+        return data;
+    }, [userId, executeApi]);
 
     const fetchAllDisputes = useCallback(async (statusFilter = null, limit = 50, offset = 0) => {
-        setLoading(true);
-        setError(null);
-        
-        try {
-            const params = new URLSearchParams();
-            if (statusFilter) params.append('status_filter', statusFilter);
-            params.append('limit', limit);
-            params.append('offset', offset);
+        const params = {};
+        if (statusFilter) params.status_filter = statusFilter;
+        params.limit = limit;
+        params.offset = offset;
 
-            const response = await axios.get(
-                `${API_BASE_URL}/disputes/admin?${params}`,
-                { headers: getAuthHeaders() }
-            );
-            
-            setDisputes(response.data);
-        } catch (err) {
-            console.error("Error fetching all disputes:", err);
-            setError(err.response?.data?.detail || err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [getAuthHeaders]);
+        const data = await executeApi(params, { 
+            method: 'GET',
+            endpoint: '/api/disputes/admin'
+        });
+        
+        setDisputes(data);
+        return data;
+    }, [executeApi]);
 
     const createDispute = useCallback(async (disputeData) => {
-        try {
-            const response = await axios.post(
-                `${API_BASE_URL}/disputes/`,
-                disputeData,
-                { headers: getAuthHeaders() }
-            );
-            
-            // Refrescar la lista de disputas
-            await fetchDisputes();
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error creating dispute:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders, fetchDisputes]);
+        const data = await executeApi(disputeData, { 
+            method: 'POST',
+            endpoint: '/api/disputes/'
+        });
+        
+        // Refrescar la lista de disputas
+        await fetchDisputes();
+        
+        return data;
+    }, [executeApi, fetchDisputes]);
 
     const updateDispute = useCallback(async (disputeId, updateData) => {
-        try {
-            const response = await axios.patch(
-                `${API_BASE_URL}/disputes/${disputeId}`,
-                updateData,
-                { headers: getAuthHeaders() }
-            );
-            
-            // Actualizar la disputa en la lista local
-            setDisputes(prev => 
-                prev.map(dispute => 
-                    dispute.id === disputeId 
-                        ? { ...dispute, ...updateData }
-                        : dispute
-                )
-            );
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error updating dispute:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders]);
+        const data = await executeApi(updateData, { 
+            method: 'PATCH',
+            endpoint: `/api/disputes/${disputeId}`
+        });
+        
+        // Actualizar la disputa en la lista local
+        setDisputes(prev => 
+            prev.map(dispute => 
+                dispute.id === disputeId 
+                    ? { ...dispute, ...updateData }
+                    : dispute
+            )
+        );
+        
+        return data;
+    }, [executeApi]);
 
     const getDispute = useCallback(async (disputeId) => {
-        try {
-            const response = await axios.get(
-                `${API_BASE_URL}/disputes/${disputeId}`,
-                { headers: getAuthHeaders() }
-            );
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error fetching dispute:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders]);
+        return executeApi({}, { 
+            method: 'GET',
+            endpoint: `/api/disputes/${disputeId}`
+        });
+    }, [executeApi]);
+
+    // Hook para manejo de estados asíncronos para uploadEvidence
+    const uploadState = useAsyncState();
 
     const uploadEvidence = useCallback(async (disputeId, file, description = null) => {
-        try {
+        return uploadState.execute(async () => {
             const formData = new FormData();
             formData.append('file', file);
             if (description) {
                 formData.append('description', description);
             }
 
-            const response = await axios.post(
-                `${API_BASE_URL}/disputes/${disputeId}/evidence`,
-                formData,
-                { 
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
-            );
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error uploading evidence:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders]);
+            // Usar fetch directamente para FormData
+            const token = await getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/disputes/${disputeId}/evidence`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error uploading evidence');
+            }
+
+            return response.json();
+        });
+    }, [uploadState]);
 
     const getEvidence = useCallback(async (disputeId) => {
-        try {
-            const response = await axios.get(
-                `${API_BASE_URL}/disputes/${disputeId}/evidence`,
-                { headers: getAuthHeaders() }
-            );
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error fetching evidence:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders]);
-
-    const clearError = useCallback(() => {
-        setError(null);
-    }, []);
+        return executeApi({}, { 
+            method: 'GET',
+            endpoint: `/api/disputes/${disputeId}/evidence`
+        });
+    }, [executeApi]);
 
     useEffect(() => {
         if (userId) {
@@ -185,8 +128,8 @@ const useDisputes = (userId) => {
 
     return {
         disputes,
-        loading,
-        error,
+        loading: loading || uploadState.loading,
+        error: error || uploadState.error,
         fetchDisputes,
         fetchAllDisputes,
         createDispute,
@@ -199,4 +142,6 @@ const useDisputes = (userId) => {
 };
 
 export default useDisputes;
+
+
 

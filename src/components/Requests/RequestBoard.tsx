@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import RequestPaymentStatus from './RequestPaymentStatus';
 import RequestHitos from './RequestHitos';
 import RequestPhotoUpload from './RequestPhotoUpload';
-// import RequestChat from './RequestChat'; // Opcional
+// @ts-ignore
+import { ChatBox, ChatButton } from '../Chat';
+// @ts-ignore
 import { supabase } from '../../supabaseClient';
 // @ts-ignore
 import { useAuth } from '../../hooks/useSupabase';
@@ -33,7 +35,11 @@ interface RequestBoardProps {
 const RequestBoard: React.FC<RequestBoardProps> = ({ role }) => {
   const [conformidad, setConformidad] = useState<null | 'conforme' | 'disconforme'>(null);
   const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const { user } = useAuth();
+  
+  // Usar user para evitar warning de variable no utilizada
+  console.log('Usuario actual:', user?.id);
 
   // Función para liberar el pago
   const handleLiberarPago = async () => {
@@ -87,6 +93,17 @@ const RequestBoard: React.FC<RequestBoardProps> = ({ role }) => {
           </div>
         )}
       </div>
+      {/* Botón de chat */}
+      <div className="mb-4">
+        <ChatButton
+          requestId={mockRequest.request_id}
+          receiverId={role === 'cliente' ? mockRequest.worker_id : mockRequest.cliente_id}
+          receiverName={role === 'cliente' ? 'Trabajador' : 'Cliente'}
+          onOpenChat={() => setIsChatOpen(true)}
+          className="w-full"
+        />
+      </div>
+
       {/* Acciones del cliente tras la foto final */}
       {role === 'cliente' && mockRequest.foto_final && (
         <div className="flex gap-4 mt-4">
@@ -106,7 +123,15 @@ const RequestBoard: React.FC<RequestBoardProps> = ({ role }) => {
           </button>
         </div>
       )}
-      {/* <RequestChat /> */}
+
+      {/* Chat Box */}
+      <ChatBox
+        requestId={mockRequest.request_id}
+        receiverId={role === 'cliente' ? mockRequest.worker_id : mockRequest.cliente_id}
+        receiverName={role === 'cliente' ? 'Trabajador' : 'Cliente'}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 };

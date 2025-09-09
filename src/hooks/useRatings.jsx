@@ -1,106 +1,47 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
+import { useApi, useAsyncState } from './useApi';
 
 /**
  * Hook personalizado para manejar operaciones de calificaciones
+ * Refactorizado para usar useApi base
  */
 export const useRatings = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { execute: executeApi, loading, error, clearError } = useApi('/api/ratings/');
 
   // Crear una nueva calificación
   const createRating = useCallback(async (ratingData) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Obtener usuario actual
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('Usuario no autenticado');
-
-      // Obtener token JWT
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('Sesión no válida');
-
-      // Llamar al endpoint del backend
-      const response = await fetch('/api/ratings/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(ratingData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al crear la calificación');
-      }
-
-      const rating = await response.json();
-      return rating;
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return executeApi(ratingData, { method: 'POST' });
+  }, [executeApi]);
 
   // Obtener calificaciones de un usuario
   const getUserRatings = useCallback(async (userId, page = 1, limit = 10) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(`/api/ratings/user/${userId}?page=${page}&limit=${limit}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al obtener las calificaciones');
+    return executeApi(
+      { page, limit },
+      { 
+        method: 'GET',
+        endpoint: `/api/ratings/user/${userId}`
       }
-
-      const data = await response.json();
-      return data;
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    );
+  }, [executeApi]);
 
   // Obtener promedio de calificaciones de un usuario
   const getUserRatingAverage = useCallback(async (userId) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(`/api/ratings/user/${userId}/average`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al obtener el promedio de calificaciones');
+    return executeApi(
+      {},
+      { 
+        method: 'GET',
+        endpoint: `/api/ratings/user/${userId}/average`
       }
+    );
+  }, [executeApi]);
 
-      const data = await response.json();
-      return data;
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Hook para manejo de estados asíncronos para canRateJob
+  const canRateJobState = useAsyncState();
 
   // Verificar si se puede calificar un trabajo
   const canRateJob = useCallback(async (jobId) => {
-    try {
+    return canRateJobState.execute(async () => {
       // Obtener información del trabajo
       const { data: job, error: jobError } = await supabase
         .from('requests')
@@ -162,24 +103,12 @@ export const useRatings = () => {
         ratedUserId,
         job
       };
-
-    } catch (err) {
-      setError(err.message);
-      return {
-        canRate: false,
-        reason: err.message
-      };
-    }
-  }, []);
-
-  // Limpiar errores
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
+    });
+  }, [canRateJobState]);
 
   return {
-    loading,
-    error,
+    loading: loading || canRateJobState.loading,
+    error: error || canRateJobState.error,
     createRating,
     getUserRatings,
     getUserRatingAverage,
@@ -190,44 +119,40 @@ export const useRatings = () => {
 
 /**
  * Hook para obtener y gestionar calificaciones en tiempo real
+ * Refactorizado para usar useApi base
  */
 export const useUserRatings = (userId) => {
   const [ratings, setRatings] = useState([]);
   const [averageScore, setAverageScore] = useState(0);
   const [totalRatings, setTotalRatings] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  // Usar useAsyncState para manejo de estados
+  const dataState = useAsyncState();
 
   const { getUserRatings, getUserRatingAverage } = useRatings();
+
+  // Memoizar funciones para evitar recreaciones innecesarias
+  const memoizedGetUserRatings = useMemo(() => getUserRatings, [getUserRatings]);
+  const memoizedGetUserRatingAverage = useMemo(() => getUserRatingAverage, [getUserRatingAverage]);
 
   // Cargar datos iniciales
   useEffect(() => {
     if (!userId) return;
 
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    dataState.execute(async () => {
+      // Cargar calificaciones y promedio en paralelo
+      const [ratingsResponse, averageResponse] = await Promise.all([
+        memoizedGetUserRatings(userId),
+        memoizedGetUserRatingAverage(userId)
+      ]);
 
-        // Cargar calificaciones y promedio en paralelo
-        const [ratingsResponse, averageResponse] = await Promise.all([
-          getUserRatings(userId),
-          getUserRatingAverage(userId)
-        ]);
+      setRatings(ratingsResponse.ratings || []);
+      setAverageScore(averageResponse.average_score || 0);
+      setTotalRatings(averageResponse.total_ratings || 0);
 
-        setRatings(ratingsResponse.ratings || []);
-        setAverageScore(averageResponse.average_score || 0);
-        setTotalRatings(averageResponse.total_ratings || 0);
-
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [userId, getUserRatings, getUserRatingAverage]);
+      return { ratings: ratingsResponse.ratings || [], average: averageResponse };
+    });
+  }, [userId, memoizedGetUserRatings, memoizedGetUserRatingAverage, dataState]);
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
@@ -264,10 +189,11 @@ export const useUserRatings = (userId) => {
     ratings,
     averageScore,
     totalRatings,
-    loading,
-    error
+    loading: dataState.loading,
+    error: dataState.error
   };
 };
 
 export default useRatings;
+
 

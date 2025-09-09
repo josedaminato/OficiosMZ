@@ -1,15 +1,17 @@
 import React from 'react';
-import NotificationBell from './NotificationBell';
+// @ts-ignore
+import NotificationBell from '../Notifications/NotificationBell';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  userId?: string;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => (
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, userId }) => (
   <div className="min-h-screen bg-gray-100">
     <header className="bg-white shadow flex items-center justify-between px-6 py-4">
-      <h1 className="text-2xl font-bold">OficiozMZ</h1>
-      <NotificationBell />
+      <h1 className="text-2xl font-bold">Oficios MZ</h1>
+      {userId && <NotificationBell userId={userId} />}
     </header>
     <main className="max-w-5xl mx-auto p-4">
       {children}

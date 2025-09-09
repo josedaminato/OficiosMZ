@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useSupabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import logo from '../../assets/logo.svg';
+import NotificationBell from '../Notifications/NotificationBell';
 
 const ClientDashboard = () => {
   const { user, signOut } = useAuth();
@@ -40,6 +41,7 @@ const ClientDashboard = () => {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationBell userId={user?.id} />
               <span className="text-sm text-gray-600">
                 Bienvenido, {user?.email}
               </span>

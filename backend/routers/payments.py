@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 from enum import Enum
 import json
 
+# Importar AuthService centralizado
+from services.auth_service import AuthService
+
 logger = logging.getLogger(__name__)
 
 # Configuración de Supabase
@@ -88,23 +91,14 @@ class MercadoPagoPreference(BaseModel):
 # =====================================================
 
 async def get_current_user(authorization: str = Header(...)):
-    """Obtener usuario actual desde JWT token"""
+    """Obtener usuario actual desde JWT token usando AuthService"""
     try:
-        # Importar la función de verificación JWT del main.py
-        import sys
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-        from main import verify_jwt_token
-        
-        # Extraer token del header
-        if not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Token de autorización inválido")
-        
-        token = authorization.split(" ")[1]
-        user_payload = await verify_jwt_token(token)
-        return user_payload
-    except Exception as e:
-        logger.error(f"Error verificando token JWT: {e}")
-        raise HTTPException(status_code=401, detail="Token de autorización inválido")
+        return await AuthService.get_current_user(authorization)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
 
 def validate_user_access(current_user_id: str, required_user_id: str):
     """Validar que el usuario tenga acceso a los datos"""
@@ -564,67 +558,25 @@ async def release_payment(
 @router.post("/webhook", status_code=status.HTTP_200_OK)
 async def mercado_pago_webhook(request: Request):
     """
-    Webhook de Mercado Pago para actualizar estados de pago.
+    Webhook mejorado de Mercado Pago con validación de firma, reintentos y logs detallados.
     """
     try:
-        body = await request.json()
-        logger.info(f"Webhook de Mercado Pago recibido: {body}")
+        # Obtener el payload y la firma
+        body = await request.body()
+        payload = body.decode('utf-8')
+        signature = request.headers.get('x-signature', '')
         
-        # Extraer información del webhook
-        payment_id = body.get("data", {}).get("id")
-        if not payment_id:
-            logger.warning("Webhook sin payment_id")
-            return {"status": "ignored"}
+        # Importar el servicio de webhooks mejorado
+        from services.payment_webhook_service import payment_webhook_service
         
-        # Obtener información del pago desde Mercado Pago
-        async with httpx.AsyncClient() as client:
-            headers = {
-                "Authorization": f"Bearer {MERCADO_PAGO_ACCESS_TOKEN}",
-                "Content-Type": "application/json"
-            }
-            
-            response = await client.get(
-                f"{MERCADO_PAGO_BASE_URL}/v1/payments/{payment_id}",
-                headers=headers
-            )
-            
-            if response.status_code == 200:
-                mp_payment = response.json()
-                external_reference = mp_payment.get("external_reference")
-                
-                if external_reference and external_reference.startswith("job_"):
-                    job_id = external_reference.replace("job_", "")
-                    
-                    # Actualizar pago en la base de datos
-                    update_data = {
-                        "mercado_pago_payment_id": payment_id,
-                        "mercado_pago_status": mp_payment.get("status"),
-                        "status": "held" if mp_payment.get("status") == "approved" else "pending"
-                    }
-                    
-                    async with httpx.AsyncClient() as supabase_client:
-                        update_response = await supabase_client.patch(
-                            f"{SUPABASE_URL}/rest/v1/payments?job_id=eq.{job_id}",
-                            json=update_data,
-                            headers=SUPABASE_HEADERS
-                        )
-                        
-                        if update_response.status_code == 200:
-                            logger.info(f"Pago actualizado desde webhook: {job_id}")
-                            return {"status": "updated"}
-                        else:
-                            logger.error(f"Error actualizando pago desde webhook: {update_response.text}")
-                            return {"status": "error"}
-                else:
-                    logger.warning(f"External reference inválido: {external_reference}")
-                    return {"status": "ignored"}
-            else:
-                logger.error(f"Error obteniendo pago desde MP: {response.text}")
-                return {"status": "error"}
-                
+        # Procesar el webhook
+        result = await payment_webhook_service.process_webhook(payload, signature)
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Error procesando webhook de Mercado Pago: {e}")
-        return {"status": "error"}
+        return {"status": "error", "message": "Internal server error"}
 
 @router.get("/{payment_id}", response_model=PaymentResponse)
 async def get_payment(
@@ -699,4 +651,6 @@ async def auto_release_payments():
     except Exception as e:
         logger.error(f"Error inesperado en liberación automática: {e}")
         return {"error": "Error interno del servidor"}
+
+
 

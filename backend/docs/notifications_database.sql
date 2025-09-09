@@ -207,3 +207,6 @@ Para habilitar Realtime:
 - Habilita la replicación para la tabla 'notifications'
 */
 
+
+
+

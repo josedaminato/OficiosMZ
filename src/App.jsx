@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Providers
 import { AuthProvider } from './hooks/useSupabase';
+import PWAProvider from './components/PWA/PWAProvider';
 
 // Components
 import LoadingSpinner from './components/ui/LoadingSpinner';
@@ -25,55 +26,57 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <div className="App">
-            <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center">
-                <LoadingSpinner size="lg" text="Cargando aplicación..." />
-              </div>
-            }>
-              <Routes>
-                {/* Landing moderna como home */}
-                <Route path="/" element={<LandingPage />} />
-                {/* Rutas públicas */}
-                <Route path="/login" element={<LoginForm />} />
-                <Route path="/register" element={<RegisterWorkerForm />} />
-                {/* Rutas protegidas */}
-                <Route 
-                  path="/dashboard" 
-                  element={
-                    <ProtectedRoute>
-                      <WorkerDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/client-dashboard" 
-                  element={
-                    <ProtectedRoute>
-                      <ClientDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                {/* Redirección por defecto */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-            {/* Toast notifications */}
-            <ToastContainer
-              position="top-right"
-              autoClose={5000}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-              theme="light"
-            />
-          </div>
-        </Router>
+        <PWAProvider>
+          <Router>
+            <div className="App">
+              <Suspense fallback={
+                <div className="min-h-screen flex items-center justify-center">
+                  <LoadingSpinner size="lg" text="Cargando aplicación..." />
+                </div>
+              }>
+                <Routes>
+                  {/* Landing moderna como home */}
+                  <Route path="/" element={<LandingPage />} />
+                  {/* Rutas públicas */}
+                  <Route path="/login" element={<LoginForm />} />
+                  <Route path="/register" element={<RegisterWorkerForm />} />
+                  {/* Rutas protegidas */}
+                  <Route 
+                    path="/dashboard" 
+                    element={
+                      <ProtectedRoute>
+                        <WorkerDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/client-dashboard" 
+                    element={
+                      <ProtectedRoute>
+                        <ClientDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  {/* Redirección por defecto */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+              {/* Toast notifications */}
+              <ToastContainer
+                position="top-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+              />
+            </div>
+          </Router>
+        </PWAProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

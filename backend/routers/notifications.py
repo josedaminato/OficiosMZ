@@ -11,6 +11,9 @@ from pydantic import BaseModel, Field, validator
 from datetime import datetime
 import os
 
+# Importar AuthService centralizado
+from services.auth_service import AuthService
+
 # Configurar logging
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,8 @@ SUPABASE_HEADERS = {
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
     "Content-Type": "application/json"
 }
+
+# Funciones JWT eliminadas - ahora se usan desde AuthService
 
 # Crear router
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
@@ -71,25 +76,13 @@ class NotificationListResponse(BaseModel):
 
 # Dependencia para obtener el usuario actual
 async def get_current_user(authorization: str = Header(...)):
-    """Obtener usuario actual desde JWT token"""
+    """Obtener usuario actual desde JWT token usando AuthService"""
     try:
-        # En un entorno real, aquí se decodificaría y validaría el JWT
-        # Por ahora, simulamos un usuario autenticado
-        if not authorization.startswith("Bearer "):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authorization header format"
-            )
-        
-        token = authorization.split(" ")[1]
-        # TODO: Validar token JWT real con Supabase
-        return {"id": "123e4567-e89b-12d3-a456-426614174000", "role": "user"}
-        
-    except Exception as e:
-        logger.error(f"Error validating user: {e}")
+        return await AuthService.get_current_user(authorization)
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
+            detail=str(e)
         )
 
 # Endpoints
@@ -423,4 +416,5 @@ async def health_check():
         "module": "notifications",
         "timestamp": datetime.now().isoformat()
     }
+
 

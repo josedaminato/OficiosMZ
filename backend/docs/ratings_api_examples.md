@@ -366,3 +366,6 @@ if __name__ == "__main__":
 4. **Cache**: Implementar cache para consultas frecuentes
 5. **Rate Limiting**: Agregar límites de velocidad para prevenir spam
 
+
+
+

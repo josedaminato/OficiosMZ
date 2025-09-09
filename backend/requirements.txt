@@ -8,4 +8,6 @@ python-jose[cryptography]
 httpx
 pytest
 pytest-asyncio
-tf-keras 
+tf-keras
+cryptography
+redis==5.0.1 

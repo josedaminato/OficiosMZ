@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useUserRatings } from '../../hooks/useRatings';
 
 /**
  * Componente para mostrar una lista de calificaciones recibidas
@@ -11,77 +12,33 @@ const RatingList = ({
   showPagination = true,
   className = '' 
 }) => {
-  const [ratings, setRatings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  
+  // Usar el hook personalizado para obtener calificaciones reales
+  const { 
+    ratings, 
+    loading, 
+    error 
+  } = useUserRatings(userId);
 
-  // Simular carga de calificaciones (reemplazar con llamada real a la API)
+  // Calcular paginación cuando cambien las calificaciones
   useEffect(() => {
-    loadRatings();
-  }, [userId, currentPage]);
-
-  const loadRatings = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // TODO: Reemplazar con llamada real a la API
-      // const response = await fetch(`/api/ratings/user/${userId}?page=${currentPage}&limit=${limit}`);
-      // const data = await response.json();
-      
-      // Datos simulados para desarrollo
-      const mockRatings = [
-        {
-          id: '1',
-          score: 5,
-          comment: 'Excelente trabajo, muy profesional y puntual. Recomiendo ampliamente.',
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          rater: {
-            id: 'rater1',
-            full_name: 'María González',
-            avatar_url: null
-          },
-          job_title: 'Reparación de plomería'
-        },
-        {
-          id: '2',
-          score: 4,
-          comment: 'Buen trabajo, llegó a tiempo y resolvió el problema eficientemente.',
-          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          rater: {
-            id: 'rater2',
-            full_name: 'Carlos Méndez',
-            avatar_url: null
-          },
-          job_title: 'Instalación eléctrica'
-        },
-        {
-          id: '3',
-          score: 5,
-          comment: 'Perfecto! Muy satisfecho con el resultado.',
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          rater: {
-            id: 'rater3',
-            full_name: 'Ana López',
-            avatar_url: null
-          },
-          job_title: 'Pintura de casa'
-        }
-      ];
-      
-      setTimeout(() => {
-        setRatings(mockRatings);
-        setTotalPages(Math.ceil(mockRatings.length / limit));
-        setLoading(false);
-      }, 500);
-      
-    } catch (err) {
-      setError('Error al cargar las calificaciones');
-      setLoading(false);
+    if (ratings && ratings.length > 0) {
+      setTotalPages(Math.ceil(ratings.length / limit));
     }
+  }, [ratings, limit]);
+
+  // Obtener calificaciones de la página actual
+  const getCurrentPageRatings = () => {
+    if (!ratings || ratings.length === 0) return [];
+    
+    const startIndex = (currentPage - 1) * limit;
+    const endIndex = startIndex + limit;
+    return ratings.slice(startIndex, endIndex);
   };
+
+  const currentRatings = getCurrentPageRatings();
 
   const renderStars = (score) => {
     return [...Array(5)].map((_, index) => (
@@ -131,7 +88,7 @@ const RatingList = ({
         <div className=\"text-red-500 mb-2\">❌</div>
         <div className=\"text-gray-600\">{error}</div>
         <button
-          onClick={loadRatings}
+          onClick={() => window.location.reload()}
           className=\"mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors\"
         >
           Reintentar
@@ -140,7 +97,7 @@ const RatingList = ({
     );
   }
 
-  if (ratings.length === 0) {
+  if (currentRatings.length === 0) {
     return (
       <div className={`text-center py-8 ${className}`}>
         <div className=\"text-gray-400 text-4xl mb-2\">⭐</div>
@@ -153,7 +110,7 @@ const RatingList = ({
   return (
     <div className={className}>
       <div className=\"space-y-4\">
-        {ratings.map((rating) => (
+        {currentRatings.map((rating) => (
           <div key={rating.id} className=\"bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow\">
             <div className=\"flex items-start space-x-3\">
               {/* Avatar */}
@@ -244,4 +201,5 @@ const RatingList = ({
 };
 
 export default RatingList;
+
 

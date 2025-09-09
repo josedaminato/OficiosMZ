@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useSupabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import NotificationBell from '../Notifications/NotificationBell';
 
 const WorkerDashboard = () => {
   const { user, signOut } = useAuth();
@@ -38,6 +39,7 @@ const WorkerDashboard = () => {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationBell userId={user?.id} />
               <span className="text-sm text-gray-600">
                 Bienvenido, {user?.email}
               </span>

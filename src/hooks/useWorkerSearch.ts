@@ -1,7 +1,7 @@
 // Hook para lógica de búsqueda y paginación de trabajadores
 // Maneja la consulta a Supabase, paginación, carga y errores.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 // Tipos de filtros
 export type WorkerFiltersType = {
@@ -146,6 +146,9 @@ const useWorkerSearch = (initialFilters: WorkerFiltersType) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
+  // Memoizar filtros para evitar recálculos innecesarios
+  const memoizedFilters = useMemo(() => filters, [filters.job, filters.customJob, filters.location, filters.minRating]);
+
   // Simular consulta a Supabase (luego reemplazar por fetch real)
   const fetchWorkers = useCallback(async (reset = false) => {
     setLoading(true);
@@ -154,9 +157,9 @@ const useWorkerSearch = (initialFilters: WorkerFiltersType) => {
       await new Promise((res) => setTimeout(res, 700)); // Simula carga
       // Filtrar y paginar mock data
       let filtered = MOCK_WORKERS.filter((w) =>
-        (!filters.job || (w.oficio && w.oficio.toLowerCase().includes(filters.job.toLowerCase())) || (filters.job === 'Otra' && filters.customJob && w.oficio && w.oficio.toLowerCase().includes(filters.customJob.toLowerCase()))) &&
-        (!filters.location || w.name.toLowerCase().includes(filters.location.toLowerCase())) &&
-        (!filters.minRating || w.rating >= filters.minRating)
+        (!memoizedFilters.job || (w.oficio && w.oficio.toLowerCase().includes(memoizedFilters.job.toLowerCase())) || (memoizedFilters.job === 'Otra' && memoizedFilters.customJob && w.oficio && w.oficio.toLowerCase().includes(memoizedFilters.customJob.toLowerCase()))) &&
+        (!memoizedFilters.location || w.name.toLowerCase().includes(memoizedFilters.location.toLowerCase())) &&
+        (!memoizedFilters.minRating || w.rating >= memoizedFilters.minRating)
       );
       filtered = filtered.filter((w) => w.avatar_url); // Solo con foto
       filtered = filtered.sort((a, b) => b.rating - a.rating); // Mejores primero
@@ -170,7 +173,7 @@ const useWorkerSearch = (initialFilters: WorkerFiltersType) => {
     } finally {
       setLoading(false);
     }
-  }, [filters, page]);
+  }, [memoizedFilters, page, workers]);
 
   // Cargar al cambiar filtros o página
   useEffect(() => {

@@ -1,166 +1,82 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { useApi, useAsyncState } from './useApi';
 
 /**
  * Hook personalizado para manejar notificaciones en tiempo real
+ * Refactorizado para usar useApi base
  */
 export const useNotifications = (userId) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  // Usar useApi para llamadas a la API
+  const { execute: executeApi, loading, error, clearError } = useApi(`/api/notifications/user/${userId}`);
 
   // Cargar notificaciones iniciales
   const loadNotifications = useCallback(async (page = 1, limit = 20, unreadOnly = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Obtener token JWT
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('Sesión no válida');
-
-      // Construir query params
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString()
-      });
-      
-      if (unreadOnly) {
-        params.append('unread_only', 'true');
-      }
-
-      // Llamar al endpoint del backend
-      const response = await fetch(`/api/notifications/user/${userId}?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al cargar notificaciones');
-      }
-
-      const data = await response.json();
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unread_count || 0);
-
-      return data;
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
+    const params = {
+      page: page.toString(),
+      limit: limit.toString()
+    };
+    
+    if (unreadOnly) {
+      params.unread_only = 'true';
     }
-  }, [userId]);
+
+    const data = await executeApi(params, { method: 'GET' });
+    setNotifications(data.notifications || []);
+    setUnreadCount(data.unread_count || 0);
+    return data;
+  }, [executeApi]);
 
   // Marcar notificación como leída
   const markAsRead = useCallback(async (notificationId) => {
-    try {
-      // Obtener token JWT
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('Sesión no válida');
+    await executeApi({}, { 
+      method: 'PATCH',
+      endpoint: `/api/notifications/${notificationId}/read`
+    });
 
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al marcar notificación como leída');
-      }
-
-      // Actualizar estado local
-      setNotifications(prev => 
-        prev.map(notification => 
-          notification.id === notificationId 
-            ? { ...notification, is_read: true }
-            : notification
-        )
-      );
-      
-      setUnreadCount(prev => Math.max(0, prev - 1));
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, []);
+    // Actualizar estado local
+    setNotifications(prev => 
+      prev.map(notification => 
+        notification.id === notificationId 
+          ? { ...notification, is_read: true }
+          : notification
+      )
+    );
+    
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  }, [executeApi]);
 
   // Marcar todas las notificaciones como leídas
   const markAllAsRead = useCallback(async () => {
-    try {
-      // Obtener token JWT
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('Sesión no válida');
+    await executeApi({}, { 
+      method: 'PATCH',
+      endpoint: `/api/notifications/user/${userId}/read-all`
+    });
 
-      const response = await fetch(`/api/notifications/user/${userId}/read-all`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al marcar todas las notificaciones como leídas');
-      }
-
-      // Actualizar estado local
-      setNotifications(prev => 
-        prev.map(notification => ({ ...notification, is_read: true }))
-      );
-      setUnreadCount(0);
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, [userId]);
+    // Actualizar estado local
+    setNotifications(prev => 
+      prev.map(notification => ({ ...notification, is_read: true }))
+    );
+    
+    setUnreadCount(0);
+  }, [executeApi, userId]);
 
   // Crear nueva notificación (para testing o uso interno)
   const createNotification = useCallback(async (notificationData) => {
-    try {
-      // Obtener token JWT
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('Sesión no válida');
+    const newNotification = await executeApi(notificationData, { 
+      method: 'POST',
+      endpoint: '/api/notifications/'
+    });
+    
+    // Agregar a la lista local
+    setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
 
-      const response = await fetch('/api/notifications/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(notificationData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al crear notificación');
-      }
-
-      const newNotification = await response.json();
-      
-      // Agregar a la lista local
-      setNotifications(prev => [newNotification, ...prev]);
-      setUnreadCount(prev => prev + 1);
-
-      return newNotification;
-
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, []);
+    return newNotification;
+  }, [executeApi]);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -211,11 +127,6 @@ export const useNotifications = (userId) => {
     };
   }, [userId]);
 
-  // Limpiar errores
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
   return {
     notifications,
     unreadCount,
@@ -251,7 +162,7 @@ export const useNotificationStats = (userId) => {
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Sesión no válida');
 
-      const response = await fetch(`/api/notifications/user/${userId}/stats`, {
+      const response = await fetch(`${API_BASE_URL}/api/notifications/user/${userId}/stats`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -286,4 +197,5 @@ export const useNotificationStats = (userId) => {
 };
 
 export default useNotifications;
+
 

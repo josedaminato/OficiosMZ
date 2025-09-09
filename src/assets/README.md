@@ -40,3 +40,6 @@ Para agregar nuevas imágenes:
 - Implementa responsive images con diferentes tamaños
 
 
+
+
+

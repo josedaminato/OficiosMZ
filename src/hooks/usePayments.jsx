@@ -1,164 +1,99 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+import { useApi, useAsyncState } from './useApi';
 
 const usePayments = (userId) => {
     const [payments, setPayments] = useState([]);
     const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
-    const getAuthHeaders = useCallback(() => {
-        const token = localStorage.getItem('supabase.auth.token');
-        const parsedToken = token ? JSON.parse(token) : null;
-        const accessToken = parsedToken?.currentSession?.access_token;
-
-        if (!accessToken) {
-            throw new Error("No authentication token found.");
-        }
-
-        return {
-            Authorization: `Bearer ${accessToken}`,
-        };
-    }, []);
+    // Usar useApi para llamadas a la API
+    const { execute: executeApi, loading, error, clearError } = useApi(`/api/payments/user/${userId}`);
 
     const fetchPayments = useCallback(async (statusFilter = null, limit = 20, offset = 0) => {
         if (!userId) return;
         
-        setLoading(true);
-        setError(null);
-        
-        try {
-            const params = new URLSearchParams();
-            if (statusFilter) params.append('status_filter', statusFilter);
-            params.append('limit', limit);
-            params.append('offset', offset);
+        const params = {};
+        if (statusFilter) params.status_filter = statusFilter;
+        params.limit = limit;
+        params.offset = offset;
 
-            const response = await axios.get(
-                `${API_BASE_URL}/payments/user/${userId}?${params}`,
-                { headers: getAuthHeaders() }
-            );
-            
-            setPayments(response.data);
-        } catch (err) {
-            console.error("Error fetching payments:", err);
-            setError(err.response?.data?.detail || err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [userId, getAuthHeaders]);
+        const data = await executeApi(params, { method: 'GET' });
+        setPayments(data);
+        return data;
+    }, [userId, executeApi]);
 
     const fetchStats = useCallback(async () => {
         if (!userId) return;
         
-        try {
-            const response = await axios.get(
-                `${API_BASE_URL}/payments/user/${userId}/stats`,
-                { headers: getAuthHeaders() }
-            );
-            
-            setStats(response.data);
-        } catch (err) {
-            console.error("Error fetching payment stats:", err);
-            setError(err.response?.data?.detail || err.message);
-        }
-    }, [userId, getAuthHeaders]);
+        const data = await executeApi({}, { 
+            method: 'GET',
+            endpoint: `/api/payments/user/${userId}/stats`
+        });
+        
+        setStats(data);
+        return data;
+    }, [userId, executeApi]);
 
     const createPayment = useCallback(async (paymentData) => {
-        try {
-            const response = await axios.post(
-                `${API_BASE_URL}/payments/`,
-                paymentData,
-                { headers: getAuthHeaders() }
-            );
-            
-            // Refrescar la lista de pagos
-            await fetchPayments();
-            await fetchStats();
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error creating payment:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders, fetchPayments, fetchStats]);
+        const data = await executeApi(paymentData, { 
+            method: 'POST',
+            endpoint: '/api/payments/'
+        });
+        
+        // Refrescar la lista de pagos
+        await fetchPayments();
+        await fetchStats();
+        
+        return data;
+    }, [executeApi, fetchPayments, fetchStats]);
 
     const holdPayment = useCallback(async (paymentId) => {
-        try {
-            const response = await axios.patch(
-                `${API_BASE_URL}/payments/${paymentId}/hold`,
-                {},
-                { headers: getAuthHeaders() }
-            );
-            
-            // Actualizar el pago en la lista local
-            setPayments(prev => 
-                prev.map(payment => 
-                    payment.id === paymentId 
-                        ? { ...payment, status: 'held', held_at: new Date().toISOString() }
-                        : payment
-                )
-            );
-            
-            // Refrescar estadísticas
-            await fetchStats();
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error holding payment:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders, fetchStats]);
+        const data = await executeApi({}, { 
+            method: 'PATCH',
+            endpoint: `/api/payments/${paymentId}/hold`
+        });
+        
+        // Actualizar el pago en la lista local
+        setPayments(prev => 
+            prev.map(payment => 
+                payment.id === paymentId 
+                    ? { ...payment, status: 'held', held_at: new Date().toISOString() }
+                    : payment
+            )
+        );
+        
+        // Refrescar estadísticas
+        await fetchStats();
+        
+        return data;
+    }, [executeApi, fetchStats]);
 
     const releasePayment = useCallback(async (paymentId) => {
-        try {
-            const response = await axios.patch(
-                `${API_BASE_URL}/payments/${paymentId}/release`,
-                {},
-                { headers: getAuthHeaders() }
-            );
-            
-            // Actualizar el pago en la lista local
-            setPayments(prev => 
-                prev.map(payment => 
-                    payment.id === paymentId 
-                        ? { ...payment, status: 'released', released_at: new Date().toISOString() }
-                        : payment
-                )
-            );
-            
-            // Refrescar estadísticas
-            await fetchStats();
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error releasing payment:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders, fetchStats]);
+        const data = await executeApi({}, { 
+            method: 'PATCH',
+            endpoint: `/api/payments/${paymentId}/release`
+        });
+        
+        // Actualizar el pago en la lista local
+        setPayments(prev => 
+            prev.map(payment => 
+                payment.id === paymentId 
+                    ? { ...payment, status: 'released', released_at: new Date().toISOString() }
+                    : payment
+            )
+        );
+        
+        // Refrescar estadísticas
+        await fetchStats();
+        
+        return data;
+    }, [executeApi, fetchStats]);
 
     const getPayment = useCallback(async (paymentId) => {
-        try {
-            const response = await axios.get(
-                `${API_BASE_URL}/payments/${paymentId}`,
-                { headers: getAuthHeaders() }
-            );
-            
-            return response.data;
-        } catch (err) {
-            console.error("Error fetching payment:", err);
-            setError(err.response?.data?.detail || err.message);
-            throw err;
-        }
-    }, [getAuthHeaders]);
-
-    const clearError = useCallback(() => {
-        setError(null);
-    }, []);
+        return executeApi({}, { 
+            method: 'GET',
+            endpoint: `/api/payments/${paymentId}`
+        });
+    }, [executeApi]);
 
     useEffect(() => {
         if (userId) {
@@ -183,4 +118,6 @@ const usePayments = (userId) => {
 };
 
 export default usePayments;
+
+
 

@@ -8,6 +8,9 @@ from datetime import datetime
 from enum import Enum
 import json
 
+# Importar AuthService centralizado
+from services.auth_service import AuthService
+
 logger = logging.getLogger(__name__)
 
 # Configuración de Supabase
@@ -108,23 +111,14 @@ class DisputeWithPaymentInfo(BaseModel):
 # =====================================================
 
 async def get_current_user(authorization: str = Header(...)):
-    """Obtener usuario actual desde JWT token"""
+    """Obtener usuario actual desde JWT token usando AuthService"""
     try:
-        # Importar la función de verificación JWT del main.py
-        import sys
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-        from main import verify_jwt_token
-        
-        # Extraer token del header
-        if not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Token de autorización inválido")
-        
-        token = authorization.split(" ")[1]
-        user_payload = await verify_jwt_token(token)
-        return user_payload
-    except Exception as e:
-        logger.error(f"Error verificando token JWT: {e}")
-        raise HTTPException(status_code=401, detail="Token de autorización inválido")
+        return await AuthService.get_current_user(authorization)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
 
 def validate_user_access(current_user_id: str, required_user_id: str):
     """Validar que el usuario tenga acceso a los datos"""
@@ -715,4 +709,6 @@ async def get_dispute_evidence(
     except Exception as e:
         logger.error(f"Error inesperado obteniendo evidencia: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor")
+
+
 

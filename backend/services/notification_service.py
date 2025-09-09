@@ -549,5 +549,255 @@ class NotificationService:
             metadata=metadata
         )
 
+    # =====================================================
+    # NOTIFICACIONES DE PAGOS
+    # =====================================================
+
+    @staticmethod
+    async def notify_payment_approved(
+        user_id: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago fue aprobado
+        """
+        title = "Pago Aprobado"
+        message = f"Tu pago de ${amount:,.2f} por '{job_title}' ha sido aprobado y está retenido hasta completar el trabajo."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "status": "approved"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_approved",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_pending(
+        user_id: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago está pendiente
+        """
+        title = "Pago Pendiente"
+        message = f"Tu pago de ${amount:,.2f} por '{job_title}' está pendiente de acreditación."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "status": "pending"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_pending",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_failed(
+        user_id: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago falló
+        """
+        title = "Pago Fallido"
+        message = f"Tu pago de ${amount:,.2f} por '{job_title}' no pudo ser procesado. Por favor, intenta nuevamente."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "status": "failed"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_failed",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_disputed(
+        user_id: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago está en disputa
+        """
+        title = "Pago en Disputa"
+        message = f"Tu pago de ${amount:,.2f} por '{job_title}' está siendo revisado por una disputa."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "status": "disputed"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_disputed",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_released(
+        user_id: str,
+        employer_name: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago fue liberado (para trabajador)
+        """
+        title = "Pago Liberado"
+        message = f"¡{employer_name} liberó tu pago de ${amount:,.2f} por '{job_title}'! Ya está disponible en tu cuenta."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "employer_name": employer_name,
+            "status": "released"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_released",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_released_employer(
+        employer_id: str,
+        worker_name: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago fue liberado (para empleador)
+        """
+        title = "Pago Liberado"
+        message = f"Liberaste el pago de ${amount:,.2f} a {worker_name} por '{job_title}'. El trabajador ya puede acceder al dinero."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "worker_name": worker_name,
+            "status": "released"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=employer_id,
+            title=title,
+            message=message,
+            notification_type="payment_released_employer",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_held(
+        user_id: str,
+        employer_name: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago fue retenido
+        """
+        title = "Pago Retenido"
+        message = f"{employer_name} retuvo tu pago de ${amount:,.2f} por '{job_title}' hasta completar el trabajo."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "employer_name": employer_name,
+            "status": "held"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_held",
+            metadata=metadata
+        )
+
+    @staticmethod
+    async def notify_payment_refunded(
+        user_id: str,
+        amount: float,
+        job_title: str,
+        payment_id: str,
+        job_id: str
+    ) -> Optional[str]:
+        """
+        Notificar que un pago fue reembolsado
+        """
+        title = "Pago Reembolsado"
+        message = f"Tu pago de ${amount:,.2f} por '{job_title}' fue reembolsado a tu cuenta."
+        
+        metadata = {
+            "payment_id": payment_id,
+            "job_id": job_id,
+            "amount": amount,
+            "job_title": job_title,
+            "status": "refunded"
+        }
+        
+        return await NotificationService.create_notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type="payment_refunded",
+            metadata=metadata
+        )
+
 # Instancia global del servicio
 notification_service = NotificationService()

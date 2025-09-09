@@ -6,7 +6,7 @@ Endpoints para gestionar calificaciones entre usuarios después de completar tra
 import logging
 import httpx
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 import os
@@ -15,6 +15,9 @@ import sys
 # Agregar el directorio services al path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
 from notification_service import notification_service
+
+# Importar AuthService centralizado
+from services.auth_service import AuthService
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -112,14 +115,17 @@ async def get_user_name(user_id: str) -> Optional[str]:
         logger.error(f"Error obteniendo nombre de usuario {user_id}: {e}")
         return None
 
-async def get_current_user(authorization: str = None) -> dict:
+async def get_current_user(authorization: str = Header(...)) -> dict:
     """
-    Obtiene el usuario actual desde el token JWT.
-    Esta función debe ser importada desde main.py o definida aquí.
+    Obtiene el usuario actual desde el token JWT usando AuthService.
     """
-    # Importar la función de verificación desde main.py
-    from main import verify_jwt_token
-    return verify_jwt_token(authorization)
+    try:
+        return await AuthService.get_current_user(authorization)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
 
 async def validate_job_exists(job_id: str) -> dict:
     """
