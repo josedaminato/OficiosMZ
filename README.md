@@ -1,25 +1,26 @@
 # Oficios MZ
 
-A React web application concept for connecting local service workers with customers in Mendoza, Argentina.
-
-The project explores separate worker and client experiences, with user registration, profile details, dashboards, and document uploads.
+Oficios MZ is a full-stack prototype for connecting customers with local service professionals in Mendoza, Argentina. It brings together worker and client experiences in a single web platform.
 
 ## Product areas
 
-- Supabase authentication and protected routes
-- Worker registration and profile management
-- Worker and client dashboards
-- Document and photo uploads through Supabase Storage
-- Reusable interface components and in-app notifications
+- Role-based worker and client registration, profiles, and dashboards
+- Service discovery, search, and geolocation
+- Document and photo uploads
+- Payment and dispute workflows
+- Messaging and notifications
+- Administrative analytics and reporting
 
 ## Technology
 
-- React 18 and React Router
-- Supabase Auth, Database, and Storage
-- Tailwind CSS
-- Vite
+- Frontend: React 19, JavaScript/TypeScript, React Router, Vite, and Tailwind CSS
+- Backend: Python and FastAPI
+- Data and services: Supabase, Redis
+- Quality: Vitest, Testing Library, pytest
 
 ## Run locally
+
+### Frontend
 
 Requirements: Node.js and npm.
 
@@ -30,7 +31,23 @@ npm install
 cp env.example .env
 ```
 
-Replace the placeholders in `.env` with your own Supabase project values and any optional integration credentials. The committed template contains placeholders only; local environment files are ignored by Git.
+Set the local Supabase and integration values in `.env`. The committed template uses placeholders; local environment files are ignored by Git.
 
-Start the development server with `npm run dev`. Build the production bundle with `npm run build`.
+```bash
+npm run dev
+```
 
+Useful checks:
+
+```bash
+npm run lint
+npm test
+npm run type-check
+npm run build
+```
+
+### Backend
+
+Install the Python dependencies listed in `backend/requirements.txt`, then follow the backend entry-point instructions in `backend/README.md`. Keep service credentials in a local environment file and never commit real keys.
+
+This repository is a product prototype. The listed modules describe the project’s implementation areas and should not be read as a claim of a publicly deployed production service.
