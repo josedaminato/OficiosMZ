@@ -27,14 +27,10 @@ Requirements: Node.js and npm.
 git clone https://github.com/josedaminato/OficiosMZ.git
 cd OficiosMZ
 npm install
+cp env.example .env
 ```
 
-Create a local `.env` file with your own Supabase project values:
-
-```env
-VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
+Replace the placeholders in `.env` with your own Supabase project values and any optional integration credentials. The committed template contains placeholders only; local environment files are ignored by Git.
 
 Start the development server with `npm run dev`. Build the production bundle with `npm run build`.
 
