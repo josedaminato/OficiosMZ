@@ -1,6 +1,7 @@
-# Dependencies
+# Dependencies and virtual environments
 node_modules/
 venv/
+env/
 oficios_mz/venv/
 
 # Python
@@ -13,13 +14,10 @@ __pycache__/
 .coverage
 .pytest_cache/
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.save
+# Local environment files and credentials
+.env*
+!.env.example
+!.env.*.example
 
 # IDE
 .vscode/
